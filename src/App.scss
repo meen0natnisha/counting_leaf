@@ -1,0 +1,61 @@
+$background: #eff7f0;
+
+.App {
+  text-align: center;
+
+  &-header {
+    background-color: $background;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    // margin: 5vh;
+  }
+}
+
+.Table_theme--header {
+  &.__left {
+    border-top-left-radius: 25px;
+    border-bottom-left-radius: 10px;
+  }
+  &.__right {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+  }
+}
+
+.Paper {
+  padding: 1em;
+  background: white;
+  border-radius: 20px;
+  margin: 0 2vh;
+  &-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 1vh 0;
+  }
+}
+
+.Image-array-list {
+  display: flex;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.Pages-dashboard {
+  background: black;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

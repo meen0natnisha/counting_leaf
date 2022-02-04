@@ -1,25 +1,35 @@
-import logo from './logo.svg';
-import './App.css';
+import React from 'react';
+import Navigation from './navigations/navigation';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import './App.scss';
 
-function App() {
+
+const theme = createTheme({
+  typography: {
+    allVariants: {
+      color: "#000"
+    },
+    fontWeightBold: "500",
+    fontWeightMedium: "400"
+  },
+  palette: {
+    primary: {
+      light: '#E5F5E8',
+      main: '#0E7229',
+      dark: '#1d1e25',
+      contrastText: '#fff',
+    },
+  },
+});
+
+const App = () => {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    <React.Fragment>
+      <ThemeProvider theme={theme}>
+        <Navigation />
+      </ThemeProvider>
+    </React.Fragment>
+  )
 }
 
 export default App;
