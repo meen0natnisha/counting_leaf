@@ -4,6 +4,7 @@ import { Box, TextField, IconButton } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import SearchIcon from '@mui/icons-material/Search'
 import ClearIcon from '@mui/icons-material/Clear'
+import { useEffect } from 'react';
 // import { makeStyles, styled } from '@mui/styles';
 // import { createTheme, ThemeProvider } from '@mui/material/styles';
 
@@ -121,6 +122,9 @@ export default function Board(props) {
         setRows(filteredRows);
     };
 
+    useEffect(() => {
+        setRows(data);
+    }, [data]);
     return (
         <Box
             sx={{
