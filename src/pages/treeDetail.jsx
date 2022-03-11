@@ -58,7 +58,6 @@ export default function TreeDetail() {
   }, []);
 
   const handleDeleteRecord = async (recordId) => {
-    console.log({recordId});
     const data = (
       await axios.delete(`/record?id=${recordId}`).catch(err => {
         console.log(err);
@@ -126,7 +125,6 @@ export default function TreeDetail() {
       renderCell: (params) => (
         <IconButton
           onClick={() =>{
-            console.log({row: params.row});
             navigate(`/manage-tree/edit_record`, { state: {name: location.state, exportedData: params.row} })
           }
           }

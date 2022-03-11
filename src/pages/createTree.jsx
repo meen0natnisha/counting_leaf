@@ -15,7 +15,7 @@ import DateAdapter from "@mui/lab/AdapterMoment";
 import AddBoxOutlinedIcon from "@mui/icons-material/AddBoxOutlined";
 import ParkIcon from "@mui/icons-material/Park";
 import SpaIcon from "@mui/icons-material/Spa";
-import NoteAltIcon from '@mui/icons-material/NoteAlt';
+import NoteAltIcon from "@mui/icons-material/NoteAlt";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import { makeStyles } from "@mui/styles";
 
@@ -27,6 +27,7 @@ import swal from "sweetalert";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import moment from "moment";
+import runModel from "../service/detect";
 
 const useStyles = makeStyles((theme) => ({
   root: {
@@ -63,6 +64,11 @@ export default function CreateTree() {
   const [leaf, setleaf] = useState();
   const [note, setnote] = useState("");
   let navigate = useNavigate();
+  const [loading, setloading] = useState({
+    status: false,
+    curState: 0,
+    maxState: 0,
+  });
   //   const [dataGrid, setDataGrid] = useState([]);
 
   const columns = [
@@ -86,9 +92,9 @@ export default function CreateTree() {
     },
   ];
 
-  useEffect(() => {
-    data.forEach((child) => console.log(child));
-  }, [data]);
+  // useEffect(() => {
+  //   data.forEach((child) => console.log(child));
+  // }, [data]);
 
   const handleUpload = async (event) => {
     let blob = event.target.files[0];
@@ -101,21 +107,6 @@ export default function CreateTree() {
     setImage(imageList);
     setData(data.concat(createData(blob.name, blob.name, blob.name)));
     setPreview({ title: blob.name, img: image64 });
-
-    // console.log(blob);
-    // const reader = new FileReader();
-    // reader.readAsDataURL(blob);
-    // reader.onloadend = function () {
-    //   const base64data = reader.result;
-    //   let imageSet = image;
-    //   imageSet.push({
-    //     title: blob.name,
-    //     img: base64data,
-    //   });
-    //   setImage(imageSet);
-    //   setData(data.concat(createData(blob.name, blob.name, blob.name)));
-    //   setPreview({ title: blob.name, img: base64data });
-    // };
   };
 
   const resizeFile = (file) =>
@@ -184,26 +175,46 @@ export default function CreateTree() {
     if (treeName === "") return swal("Please enter a tree name");
     else if (leaf === "") return swal("Please enter a leaf");
     else if (isNaN(leaf)) return swal("Please enter leaf as a valid number");
-    const userId = localStorage.getItem("accessTokenLeafCount")
-    const data = (await axios.post("/tree", {
-      name: treeName,
-      leaf: leaf,
-      date: date,
-      imgList: image,
-      note: note,
-      userId,
-      action: "addTree"
-    })).data;
+    const userId = localStorage.getItem("accessTokenLeafCount");
+    const data = (
+      await axios.post("/tree", {
+        name: treeName,
+        leaf: leaf,
+        date: date,
+        imgList: image,
+        note: note,
+        userId,
+        action: "addTree",
+      })
+    ).data;
     if ("success" in data) {
-        swal("Success", data.success, "success", {
-          buttons: false,
-          timer: 2000,
-        }).then(() => {
-          navigate(`/dashboard`);
-        });
-      } else {
-        swal("Failed", data.failed, "error");
+      swal("Success", data.success, "success", {
+        buttons: false,
+        timer: 2000,
+      }).then(() => {
+        navigate(`/dashboard`);
+      });
+    } else {
+      swal("Failed", data.failed, "error");
+    }
+  };
+
+  const detectImg = async () => {
+    if (image.length) {
+      let leafCount = 0;
+      let count = 1
+      for await (const img of image) {
+        setloading({
+          status: true,
+          curState: count,
+          maxState: image.length,
+        })
+        leafCount += await runModel(img.img);
+        count++
       }
+      setleaf(Math.ceil(leafCount / image.length));
+      setloading({status:false})
+    } else setleaf(0);
   };
 
   return (
@@ -225,7 +236,7 @@ export default function CreateTree() {
               <DatePicker
                 label="Date"
                 value={date}
-                inputFormat='DD/MM/YYYY'
+                inputFormat="DD/MM/YYYY"
                 onChange={(newValue) => {
                   setDate(moment(newValue).toDate());
                 }}
@@ -247,11 +258,25 @@ export default function CreateTree() {
                 id="outlined-basic"
                 label="Leaf"
                 variant="outlined"
+                value={leaf}
                 InputProps={{
-                  startAdornment: <SpaIcon color="primary" />,
+                  startAdornment: (
+                    <SpaIcon
+                      color="primary"
+                      onClick={() => detectImg()}
+                      style={{ cursor: "pointer" }}
+                    />
+                  ),
                 }}
                 onChange={(e) => setleaf(e.target.value)}
               />
+              {loading.status ? (
+                <strong>
+                  Loading...{loading.curState}/{loading.maxState}
+                </strong>
+              ) : (
+                ""
+              )}
             </Stack>
             <Stack spacing={2}>
               <TextField

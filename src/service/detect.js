@@ -1,104 +1,49 @@
-import React, { useState, useEffect } from "react";
-import "./index.css";
 import * as tf from "@tensorflow/tfjs";
 
-function ImgImporter() {
-  const [file, setFile] = useState(null);
-  const [model, setModel] = useState(null);
-  const [processing, setProcessing] = useState(false);
-  const [prediction, setPrediction] = useState(null);
-  const [imageLoaded, setImageLoaded] = useState(false);
+const threshold = 0.8;
 
-  function readImage(file) {
-    return new Promise((rs, rj) => {
-      const fileReader = new FileReader();
-      fileReader.onload = () => rs(fileReader.result);
-      fileReader.onerror = () => rj(fileReader.error);
-      fileReader.readAsDataURL(file);
+  function load(url) {
+    return new Promise((resolve, reject) => {
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      im.src = url;
+      im.onload = () => {
+        resolve(im);
+      };
     });
   }
 
-  async function handleImgUpload(event) {
-    const {
-      target: { files },
-    } = event;
+  // Main function
+  const runModel = async (selectedImg) => {
+    console.log("Loading model...");
+    const net = await tf.loadGraphModel(
+      "https://leaf-counting.s3.au-syd.cloud-object-storage.appdomain.cloud/model.json"
+    );
+    console.log("Model loaded");
+    return await detect(net, selectedImg);
+  };
 
-    const _file = files[0];
-    const fileData = await readImage(_file);
-    setFile(fileData);
-    setProcessing(true);
-  }
+  const detect = async (net, selectedImg) => {
+    // Check data is available
+    if (selectedImg != "" && selectedImg !== null) {
+      console.log("Image ready");
 
-  useEffect(() => {
-    async function loadModel() {
-      if (!model) {
-        const _model = await tf.loadGraphModel("https://tensorflow-model-senior-proj.s3.jp-tok.cloud-object-storage.appdomain.cloud/model.json");
-        setModel(_model);
-      }
-    }
+      const image = await load(selectedImg);
+      console.log("Image loaded");
+      // 4. TODO - Make Detections
+      // console.log("Detecting...");
+      const img = tf.browser.fromPixels(image);
+      console.log("Image converted to tensor");
+      const resized = tf.image.resizeBilinear(img, [640, 640]);
+      const casted = resized.cast("int32");
+      const expanded = casted.expandDims(0);
+      const obj = await net.executeAsync(expanded);
+      console.log("Detections done");
+      const scores = await obj[6].array();
+      const leafCount = scores[0].filter((score) => score > threshold);
+      // Draw mesh
+      return leafCount.length;
+    } else console.log("Image not ready");
+  };
 
-    loadModel();
-  });
-
-  useEffect(() => {
-    async function predict() {
-      if (imageLoaded && file) {
-        const imageElement = document.createElement("img");
-        imageElement.src = file;
-
-        imageElement.onload = async () => {
-          const tensor = tf.browser
-            .fromPixels(imageElement, 1)
-            .resizeNearestNeighbor([380, 380])
-            .expandDims()
-            .toFloat();
-
-          const prediction = await model.predict(tensor).data();
-
-          setPrediction(parseInt(prediction, 10));
-          setProcessing(false);
-          setImageLoaded(false);
-        };
-      }
-    }
-
-    predict();
-  }, [imageLoaded, model, file]);
-
-  return (
-    <div className="File-input-container">
-      <form className="Form">
-        <label htmlFor="upload-image">Upload image</label>
-        <input
-          id="image-selector"
-          type="file"
-          name="upload-image"
-          accept="image/*"
-          className="File-selector"
-          onChange={handleImgUpload}
-          disabled={!model || processing}
-        />
-      </form>
-      <div className="Img-display-container">
-        <img
-          onLoad={() => {
-            setImageLoaded(true);
-          }}
-          alt=""
-          src={file}
-        />
-      </div>
-      <div className="Img-processing-container">
-        {processing ? (
-          <p>Loading ...</p>
-        ) : prediction !== null ? (
-          <div>
-            <p>{prediction === 1 ? "Yes" : "No"}</p>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-export default ImgImporter;
+export default runModel;

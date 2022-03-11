@@ -25,6 +25,8 @@ import { useLocation, useNavigate, useParams } from "react-router-dom";
 import swal from "sweetalert";
 import axios from "axios";
 import moment from "moment";
+import Resizer from "react-image-file-resizer";
+import runModel from "../service/detect";
 
 const Input = styled("input")({
   display: "none",
@@ -45,13 +47,17 @@ export default function ManageTree() {
   const [leaf, setleaf] = useState();
   const [note, setnote] = useState("");
   const [recordId, setrecordId] = useState("");
-  const [treeName, settreeName] = useState("")
+  const [treeName, settreeName] = useState("");
+  const [loading, setloading] = useState({
+    status: false,
+    curState: 0,
+    maxState: 0,
+  });
   let navigate = useNavigate();
 
   useEffect(() => {
-    console.log({ name, exportedData });
     if (exportedData) {
-      settreeName(name)
+      settreeName(name);
       for (const data of Object.entries(exportedData)) {
         const [key, value] = data;
         switch (key) {
@@ -59,7 +65,7 @@ export default function ManageTree() {
             setDate(moment(value).toDate());
             break;
           case "leaf":
-            console.log(value);
+
             setleaf(value.toString());
             break;
           case "preview":
@@ -75,7 +81,7 @@ export default function ManageTree() {
             break;
         }
       }
-    } else settreeName(location.state)
+    } else settreeName(location.state);
   }, []);
 
   const columns = [
@@ -98,25 +104,37 @@ export default function ManageTree() {
     },
   ];
 
-  useEffect(() => {
-    data.forEach((child) => console.log(child));
-  }, [data]);
+  // useEffect(() => {
+  //   data.forEach((child) => console.log(child));
+  // }, [data]);
 
-  const handleUpload = (event) => {
+  const resizeFile = (file) =>
+    new Promise((resolve) => {
+      Resizer.imageFileResizer(
+        file,
+        640,
+        640,
+        "JPEG",
+        100,
+        0,
+        (uri) => {
+          resolve(uri);
+        },
+        "base64"
+      );
+    });
+
+  const handleUpload = async (event) => {
     let blob = event.target.files[0];
-    const reader = new FileReader();
-    reader.readAsDataURL(blob);
-    reader.onloadend = function () {
-      const base64data = reader.result;
-      let imageSet = image;
-      imageSet.push({
-        title: blob.name,
-        img: base64data,
-      });
-      setImage(imageSet);
-      setData(data.concat(createData(blob.name, blob.name, blob.name)));
-      setPreview({ title: blob.name, img: base64data });
-    };
+    const image64 = await resizeFile(blob);
+    let imageList = image;
+    imageList.push({
+      title: blob.name,
+      img: image64,
+    });
+    setImage(imageList);
+    setData(data.concat(createData(blob.name, blob.name, blob.name)));
+    setPreview({ title: blob.name, img: image64 });
   };
 
   const ImageArrayList = (imageSet) => {
@@ -168,7 +186,6 @@ export default function ManageTree() {
     if (leaf === "") return swal("Please enter a leaf");
     else if (isNaN(leaf)) return swal("Please enter leaf as a valid number");
     const userId = localStorage.getItem("accessTokenLeafCount");
-    console.log({date});
     const data = (
       await axios.post("/tree", {
         name: treeName,
@@ -196,7 +213,6 @@ export default function ManageTree() {
     if (leaf === "") return swal("Please enter a leaf");
     else if (isNaN(leaf)) return swal("Please enter leaf as a valid number");
     const userId = localStorage.getItem("accessTokenLeafCount");
-    return console.log({date});
     const data = (
       await axios.patch(`/record?id=${recordId}`, {
         name: treeName,
@@ -222,7 +238,7 @@ export default function ManageTree() {
 
   const handleDeleteRecord = async () => {
     const data = (
-      await axios.delete(`/tree?id=${recordId}`).catch(err => {
+      await axios.delete(`/tree?id=${recordId}`).catch((err) => {
         console.log(err);
       })
     ).data;
@@ -236,6 +252,24 @@ export default function ManageTree() {
     } else {
       swal("Failed", data.failed, "error");
     }
+  };
+
+  const detectImg = async () => {
+    if (image.length) {
+      let leafCount = 0;
+      let count = 1
+      for await (const img of image) {
+        setloading({
+          status: true,
+          curState: count,
+          maxState: image.length,
+        })
+        leafCount += await runModel(img.img);
+        count++
+      }
+      setleaf(Math.ceil(leafCount / image.length));
+      setloading({status:false})
+    } else setleaf(0);
   };
 
   return (
@@ -257,7 +291,7 @@ export default function ManageTree() {
               <DatePicker
                 label="Date"
                 value={date}
-                inputFormat='DD/MM/YYYY'
+                inputFormat="DD/MM/YYYY"
                 onChange={(newValue) => {
                   setDate(moment(newValue).toDate());
                 }}
@@ -279,7 +313,7 @@ export default function ManageTree() {
                 startAdornment: <ParkIcon color="primary" />,
               }}
             />
-            <Stack spacing={2}>
+            <Stack spacing={3}>
               <strong>Tree Information</strong>
               <TextField
                 id="outlined-basic"
@@ -288,9 +322,22 @@ export default function ManageTree() {
                 value={leaf}
                 onChange={(e) => setleaf(e.target.value)}
                 InputProps={{
-                  startAdornment: <SpaIcon color="primary" />,
+                  startAdornment: (
+                    <SpaIcon
+                      color="primary"
+                      onClick={() => detectImg()}
+                      style={{ cursor: "pointer" }}
+                    />
+                  ),
                 }}
               />
+              {loading.status ? (
+                <strong>
+                  Loading...{loading.curState}/{loading.maxState}
+                </strong>
+              ) : (
+                ""
+              )}
             </Stack>
             <Stack spacing={2}>
               <TextField
@@ -311,7 +358,9 @@ export default function ManageTree() {
             ) : (
               <Stack spacing={2}>
                 <MyButton onClick={handleSaveRecord}>Save</MyButton>
-                <MyButton color="light" onClick={handleDeleteRecord}>delete</MyButton>
+                <MyButton color="light" onClick={handleDeleteRecord}>
+                  delete
+                </MyButton>
               </Stack>
             )}
           </Stack>
