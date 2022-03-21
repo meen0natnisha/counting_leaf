@@ -32,7 +32,7 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "serve": "start react-scripts start && start firebase serve",
     "build": "react-scripts build",
     "deploy": "yarn build && firebase deploy",
     "test": "react-scripts test",
